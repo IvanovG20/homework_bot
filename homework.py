@@ -58,7 +58,7 @@ def get_api_answer(timestamp):
         if response.status_code != HTTPStatus.OK:
             logging.error(
                 f'Сбой в работе программы. Эндпоинт:{ENDPOINT} недоступен.')
-            raise Exception  
+            raise Exception
     except requests.RequestException:
         logging.error(
             f'Сбой в работе программы. Эндпоинт:{ENDPOINT} недоступен.'
