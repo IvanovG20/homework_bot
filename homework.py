@@ -1,3 +1,4 @@
+import sys
 import logging
 import os
 import time
@@ -14,6 +15,14 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler(sys.stdout)
+formater = logging.Formatter(
+    '%(asctime)s - %(levelname)s - %(message)s'
+)
+handler.setFormatter(formater)
+logger.addHandler(handler)
 
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
@@ -35,20 +44,23 @@ HOMEWORK_VERDICTS = {
 def check_tokens():
     """Проверяет доступность переменных окружения."""
     tokens = [PRACTICUM_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_TOKEN]
-    for token in tokens:
-        if token is None:
-            logging.critical('Отсутвует некоторая информация.')
-            raise Exception
+    if all(tokens) is False:
+        logging.critical('Отсутвует некоторая информация.')
+        raise Exception
 
 
 def send_message(bot, message):
     """Отправляет сообщение в telegram-чат."""
-    logging.debug('Успешно отправилось сообщение!')
-    return bot.send_message(TELEGRAM_CHAT_ID, message)
+    logging.debug('Отправляется сообщение в telegram.')
+    try:
+        bot.send_message(TELEGRAM_CHAT_ID, message)
+    except telegram.TelegramError as error:
+        logging.error(f'Ошибка отправки сообщения: {error}')
 
 
 def get_api_answer(timestamp):
     """Делает запрос к API-сервиса."""
+    logging.debug('Делаем запрос к API.')
     try:
         response = requests.get(
             url=ENDPOINT,
@@ -68,9 +80,9 @@ def get_api_answer(timestamp):
 
 def check_response(response):
     """Проверяет ответ API на соотвествие документации."""
-    if type(response) is not dict:
+    if isinstance(response, dict) is False:
         raise TypeError('Тип ответа не тот.')
-    elif 'homeworks' not in response.keys():
+    elif 'homeworks' not in response:
         logging.error('Отсутствие нужных ключей.')
         raise KeyError
     elif type(response['homeworks']) is not list:
@@ -97,19 +109,28 @@ def main():
     check_tokens()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
+    last_message = {
+        'message': None
+    }
     while True:
         try:
             response = get_api_answer(timestamp=timestamp)
+            logging.debug('API-сервиса доступен.')
             response = check_response(response)
             if response:
                 homework = response['homeworks'][0]
                 message = parse_status(homework)
-                send_message(bot, message)
+                if last_message['message'] != message:
+                    send_message(bot, message)
+                    logging.debug('Сообщение успешно отправленно.')
+                    last_message['message'] = message
             timestamp = response.get('current_date')
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)
-            send_message(bot, message)
+            if last_message['message'] != message:
+                send_message(bot, message)
+                last_message['message'] = message
         finally:
             time.sleep(RETRY_PERIOD)
 
