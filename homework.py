@@ -44,7 +44,7 @@ HOMEWORK_VERDICTS = {
 def check_tokens():
     """Проверяет доступность переменных окружения."""
     tokens = [PRACTICUM_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_TOKEN]
-    if all(tokens) is False:
+    if not all(tokens):
         logging.critical('Отсутвует некоторая информация.')
         raise Exception
 
@@ -54,6 +54,7 @@ def send_message(bot, message):
     logging.debug('Отправляется сообщение в telegram.')
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
+        logging.debug('Запрос успешно отправлен.')
     except telegram.TelegramError as error:
         logging.error(f'Ошибка отправки сообщения: {error}')
 
@@ -75,17 +76,18 @@ def get_api_answer(timestamp):
         logging.error(
             f'Сбой в работе программы. Эндпоинт:{ENDPOINT} недоступен.'
         )
+    logging.debug('Запрос успешно отправлен.')
     return response.json()
 
 
 def check_response(response):
     """Проверяет ответ API на соотвествие документации."""
-    if isinstance(response, dict) is False:
+    if not isinstance(response, dict):
         raise TypeError('Тип ответа не тот.')
     elif 'homeworks' not in response:
         logging.error('Отсутствие нужных ключей.')
         raise KeyError
-    elif type(response['homeworks']) is not list:
+    elif not isinstance(response['homeworks'], list):
         raise TypeError('Список передан не правильно.')
     else:
         return response
@@ -93,9 +95,9 @@ def check_response(response):
 
 def parse_status(homework):
     """Вызволяет статус домашнего задания."""
-    if homework.get('homework_name') is None:
+    if not homework.get('homework_name'):
         raise ValueError('Неверное имя домашнего задания')
-    if homework.get('status') is None:
+    if not homework.get('status'):
         raise ValueError('Неверный статус домашнего задания.')
     if homework.get('status') not in HOMEWORK_VERDICTS:
         raise Exception
